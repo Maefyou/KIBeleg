@@ -11,8 +11,8 @@ def draw_circle(image, width, height):
     """Draws a circle on the image. Returns circle parameters if a circle is drawn."""
     if random.choice([True, False]):
         radius = random.randint(10, min(width, height) // 4)
-        center_x = random.randint(radius, width - radius)
-        center_y = random.randint(radius, height - radius)
+        center_x = random.randint(0, width - 1)
+        center_y = random.randint(0, height - 1)
         cv2.circle(image, (center_x, center_y), radius, 255, -1)
         return center_x, center_y, radius
     return None
