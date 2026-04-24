@@ -2,6 +2,7 @@ import os
 import numpy as np
 import cv2
 import random
+import argparse
 
 def create_image(width, height):
     """Creates a blank image."""
@@ -40,10 +41,9 @@ def generate_ground_truth(points, circle_params, width, height):
             ground_truth.append({'vector': (0,0), 'is_inside': 0})
     return ground_truth
 
-def add_noise(image):
+def add_noise(image, noise_level):
     """Adds salt-and-pepper noise to the image."""
     if random.choice([True, False]):
-        noise_level = 0.01
         num_noise_pixels = int(noise_level * image.size)
         # Add salt
         salt_coords = [np.random.randint(0, i - 1, num_noise_pixels) for i in image.shape]
@@ -63,7 +63,7 @@ def add_clutter(image):
             cv2.line(image, (x1, y1), (x2, y2), random.randint(50, 200), 1)
     return image
 
-def generate_and_save_data(num_samples, data_path, width, height, include_noise, include_clutter):
+def generate_and_save_data(num_samples, data_path, width, height, include_noise, include_clutter, noise_level):
     """Generates and saves the dataset."""
     os.makedirs(data_path, exist_ok=True)
     for i in range(num_samples):
@@ -71,7 +71,7 @@ def generate_and_save_data(num_samples, data_path, width, height, include_noise,
         circle_params = draw_circle(image, width, height)
         
         if include_noise:
-            image = add_noise(image)
+            image = add_noise(image, noise_level)
         if include_clutter:
             image = add_clutter(image)
             
@@ -84,7 +84,13 @@ def generate_and_save_data(num_samples, data_path, width, height, include_noise,
 
 def main():
     """Main function to generate the dataset."""
-    width, height = 128, 128
+    parser = argparse.ArgumentParser(description='Generate circle detection dataset.')
+    parser.add_argument('--width', type=int, default=128, help='Width of the images.')
+    parser.add_argument('--height', type=int, default=128, help='Height of the images.')
+    parser.add_argument('--noise-level', type=float, default=0.01, help='Salt-and-pepper noise level.')
+    args = parser.parse_args()
+
+    width, height, noise_level = args.width, args.height, args.noise_level
     
     # Define dataset sizes
     train_size = 1000
@@ -99,11 +105,11 @@ def main():
     
     # Generate data
     print("Generating training data...")
-    generate_and_save_data(train_size, train_path, width, height, include_noise=True, include_clutter=True)
+    generate_and_save_data(train_size, train_path, width, height, include_noise=True, include_clutter=True, noise_level=noise_level)
     print("Generating testing data...")
-    generate_and_save_data(test_size, test_path, width, height, include_noise=True, include_clutter=True)
+    generate_and_save_data(test_size, test_path, width, height, include_noise=True, include_clutter=True, noise_level=noise_level)
     print("Generating validation data...")
-    generate_and_save_data(val_size, val_path, width, height, include_noise=True, include_clutter=True)
+    generate_and_save_data(val_size, val_path, width, height, include_noise=True, include_clutter=True, noise_level=noise_level)
     
     print("Dataset generation complete.")
 

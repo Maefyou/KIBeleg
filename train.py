@@ -6,6 +6,7 @@ from dataset import CircleDataset
 from model import TransformerModel
 import time
 from tqdm import tqdm
+import argparse
 
 def loss_function(pred_vectors, pred_probs, true_vectors, true_is_inside):
     """Custom loss function."""
@@ -74,35 +75,34 @@ def train_model(model, train_loader, val_loader, epochs=10, lr=0.0001):
     return model
 
 def main():
-    # Hyperparameters
-    batch_size = 1
-    epochs = 5
-    lr = 0.0001
-    d_model = 128
-    nhead = 4
-    num_encoder_layers = 3
-    dim_feedforward = 512
+    """Main function to train the model."""
+    parser = argparse.ArgumentParser(description='Train a circle detection model.')
+    parser.add_argument('--model', type=str, default='transformer', help='Model to train (transformer or cnn).')
+    parser.add_argument('--target_width', type=int, default=128, help='Target width for resizing images.')
+    parser.add_argument('--target_height', type=int, default=128, help='Target height for resizing images.')
+    args = parser.parse_args()
 
     # Data loaders
-    train_dataset = CircleDataset(data_path='data/train')
-    train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
+    train_dataset = CircleDataset(data_path='data/train', target_width=args.target_width, target_height=args.target_height)
+    val_dataset = CircleDataset(data_path='data/validation', target_width=args.target_width, target_height=args.target_height)
     
-    val_dataset = CircleDataset(data_path='data/validation')
-    val_loader = DataLoader(val_dataset, batch_size=batch_size)
-
+    train_loader = DataLoader(train_dataset, batch_size=1, shuffle=True)
+    val_loader = DataLoader(val_dataset, batch_size=1, shuffle=False)
+    
     # Model
-    model = TransformerModel(
-        d_model=d_model,
-        nhead=nhead,
-        num_encoder_layers=num_encoder_layers,
-        dim_feedforward=dim_feedforward
-    )
-
-    # Train the model
-    trained_model = train_model(model, train_loader, val_loader, epochs=epochs, lr=lr)
-
-    # Save the model
-    torch.save(trained_model.state_dict(), 'circle_detector_model.pth')
+    if args.model == 'transformer':
+        model = TransformerModel(width=args.target_width, height=args.target_height)
+    elif args.model == 'cnn':
+        # Placeholder for CNN model
+        raise NotImplementedError("CNN model not yet implemented.")
+    else:
+        raise ValueError("Unsupported model type. Choose 'transformer' or 'cnn'.")
+    
+    # Training
+    train_model(model, train_loader, val_loader, epochs=5, lr=0.0001)
+    
+    # Save the trained model
+    torch.save(model.state_dict(), 'circle_detector_model.pth')
     print("Model saved to circle_detector_model.pth")
 
 if __name__ == '__main__':
