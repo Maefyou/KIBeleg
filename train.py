@@ -1,109 +1,78 @@
 import torch
 import torch.optim as optim
-from torch.utils.data import DataLoader
-import torch.nn as nn
-from dataset import CircleDataset
-from model import TransformerModel
-import time
-from tqdm import tqdm
+from data_generator import generate_circle_data
+from model import AttentionCircleDetector
+import numpy as np
 import argparse
 
-def loss_function(pred_vectors, pred_probs, true_vectors, true_is_inside):
-    """Custom loss function."""
-    mse_loss = nn.MSELoss()(pred_vectors, true_vectors)
-    bce_loss = nn.BCELoss()(pred_probs, true_is_inside)
-    return mse_loss + bce_loss
-
-def train_model(model, train_loader, val_loader, epochs=10, lr=0.0001):
-    """Training loop for the transformer model."""
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    print(f"Using device: {device}")
-    model.to(device)
-    
-    optimizer = optim.Adam(model.parameters(), lr=lr)
-    
-    for epoch in range(epochs):
-        model.train()
-        epoch_loss = 0
-        start_time = time.time()
-        
-        train_iterator = tqdm(train_loader, desc=f"Epoch {epoch+1}/{epochs} [Training]")
-        for i, batch in enumerate(train_iterator):
-            points = batch['points'].to(device)
-            true_vectors = batch['vectors'].to(device)
-            true_is_inside = batch['is_inside'].to(device)
-            
-            optimizer.zero_grad()
-            
-            pred_vectors, pred_probs = model(points)
-            
-            loss = loss_function(pred_vectors, pred_probs, true_vectors, true_is_inside)
-            loss.backward()
-            optimizer.step()
-            
-            epoch_loss += loss.item()
-            
-            train_iterator.set_postfix(loss=f"{loss.item():.4f}")
-
-        end_time = time.time()
-        epoch_duration = end_time - start_time
-        avg_loss = epoch_loss / len(train_loader)
-        print(f"Epoch {epoch+1} Summary:")
-        print(f"  - Average Training Loss: {avg_loss:.4f}")
-        print(f"  - Epoch Duration: {epoch_duration:.2f} seconds")
-
-        # Validation
-        model.eval()
-        val_loss = 0
-        val_iterator = tqdm(val_loader, desc=f"Epoch {epoch+1}/{epochs} [Validation]")
-        with torch.no_grad():
-            for batch in val_iterator:
-                points = batch['points'].to(device)
-                true_vectors = batch['vectors'].to(device)
-                true_is_inside = batch['is_inside'].to(device)
-                
-                pred_vectors, pred_probs = model(points)
-                
-                loss = loss_function(pred_vectors, pred_probs, true_vectors, true_is_inside)
-                val_loss += loss.item()
-                val_iterator.set_postfix(loss=f"{loss.item():.4f}")
-        
-        avg_val_loss = val_loss / len(val_loader)
-        print(f"  - Validation Loss: {avg_val_loss:.4f}")
-
-    print("Training complete.")
-    return model
-
 def main():
-    """Main function to train the model."""
-    parser = argparse.ArgumentParser(description='Train a circle detection model.')
-    parser.add_argument('--model', type=str, default='transformer', help='Model to train (transformer or cnn).')
-    parser.add_argument('--target_width', type=int, default=128, help='Target width for resizing images.')
-    parser.add_argument('--target_height', type=int, default=128, help='Target height for resizing images.')
+    # --- Command-line argument parsing ---
+    parser = argparse.ArgumentParser(description="Train an attention model for circle detection.")
+    parser.add_argument('--num-points', type=int, default=300,
+                        help='Number of sample points to generate per batch.')
+    parser.add_argument('--epochs', type=int, default=1000,
+                        help='Number of training epochs.')
+    parser.add_argument('--batch-size', type=int, default=64,
+                        help='Batch size for training.')
+    parser.add_argument('--lr', type=float, default=0.00001,
+                        help='Learning rate for the optimizer.')
     args = parser.parse_args()
 
-    # Data loaders
-    train_dataset = CircleDataset(data_path='data/train', target_width=args.target_width, target_height=args.target_height)
-    val_dataset = CircleDataset(data_path='data/validation', target_width=args.target_width, target_height=args.target_height)
+    # --- Training Parameters ---
+    NUM_EPOCHS = args.epochs
+    BATCH_SIZE = args.batch_size
+    NUM_POINTS_PER_SAMPLE = args.num_points
+    LEARNING_RATE = args.lr
+
+    # --- Setup ---
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    print(f"Using device: {device}")
+
+    # Instantiate the model
+    model = AttentionCircleDetector(max_seq_len=NUM_POINTS_PER_SAMPLE * 2).to(device) # Ensure max_len is sufficient
     
-    train_loader = DataLoader(train_dataset, batch_size=1, shuffle=True)
-    val_loader = DataLoader(val_dataset, batch_size=1, shuffle=False)
-    
-    # Model
-    if args.model == 'transformer':
-        model = TransformerModel(width=args.target_width, height=args.target_height)
-    elif args.model == 'cnn':
-        # Placeholder for CNN model
-        raise NotImplementedError("CNN model not yet implemented.")
-    else:
-        raise ValueError("Unsupported model type. Choose 'transformer' or 'cnn'.")
-    
-    # Training
-    train_model(model, train_loader, val_loader, epochs=5, lr=0.0001)
-    
-    # Save the trained model
-    torch.save(model.state_dict(), 'circle_detector_model.pth')
-    print("Model saved to circle_detector_model.pth")
+    # Setup optimizer
+    optimizer = optim.Adam(model.parameters(), lr=LEARNING_RATE)
+
+    print(f"--- Starting Training ---")
+    print(f"Epochs: {NUM_EPOCHS}, Batch Size: {BATCH_SIZE}, Points per Sample: {NUM_POINTS_PER_SAMPLE}, LR: {LEARNING_RATE}")
+
+    # --- Training Loop ---
+    for epoch in range(NUM_EPOCHS):
+        # Generate a fresh batch of data for each epoch
+        # This acts as our data loader
+        points, vectors, labels, _ = generate_circle_data(
+            num_points=NUM_POINTS_PER_SAMPLE * BATCH_SIZE
+        )
+        
+        # Reshape data into batches
+        points_batch = torch.from_numpy(points.reshape(BATCH_SIZE, NUM_POINTS_PER_SAMPLE, -1)).float().to(device)
+        vectors_batch = torch.from_numpy(vectors.reshape(BATCH_SIZE, NUM_POINTS_PER_SAMPLE, -1)).float().to(device)
+        labels_batch = torch.from_numpy(labels.reshape(BATCH_SIZE, NUM_POINTS_PER_SAMPLE)).float().to(device)
+
+        # Zero the gradients
+        optimizer.zero_grad()
+
+        # Forward pass
+        pred_vectors, pred_probs, _ = model(points_batch)
+
+        # Calculate loss
+        loss = model.loss_function(pred_vectors, pred_probs, vectors_batch, labels_batch)
+
+        # Backward pass and optimization
+        loss.backward()
+        optimizer.step()
+
+        # Print progress
+        if (epoch + 1) % 10 == 0:
+            print(f"Epoch [{epoch+1}/{NUM_EPOCHS}], Loss: {loss.item():.6f}")
+
+    print("--- Training Finished ---")
+
+    # --- Save the trained model ---
+    model_save_path = "attention_circle_detector.pth"
+    torch.save(model.state_dict(), model_save_path)
+    print(f"Model saved to {model_save_path}")
 
 if __name__ == '__main__':
     main()
