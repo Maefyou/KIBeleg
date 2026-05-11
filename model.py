@@ -14,11 +14,12 @@ class PositionalEncoding(nn.Module):
         self.register_buffer('pe', pe)
 
     def forward(self, x):
-        x = x + self.pe[:x.size(0), :]
+        pe = self.pe[:x.size(1), :].transpose(0, 1)
+        x = x + pe
         return x
 
 class AttentionCircleDetector(nn.Module):
-    def __init__(self, input_dim=2, d_model=128, nhead=8, num_encoder_layers=6, dim_feedforward=512, dropout=0.1, max_seq_len=5000):
+    def __init__(self, input_dim=3, d_model=128, nhead=8, num_encoder_layers=6, dim_feedforward=512, dropout=0.1, max_seq_len=5000):
         super(AttentionCircleDetector, self).__init__()
         self.d_model = d_model
         self.input_embedding = nn.Linear(input_dim, d_model)
@@ -79,7 +80,7 @@ if __name__ == '__main__':
     # --- Dummy Data ---
     BATCH_SIZE = 32
     SEQ_LENGTH = 100 # Number of points per sample
-    INPUT_DIM = 2 # (x, y) coordinates
+    INPUT_DIM = 3 # (x, y, c) features
 
     # Create a model instance
     model = AttentionCircleDetector(input_dim=INPUT_DIM)
@@ -93,20 +94,20 @@ if __name__ == '__main__':
     dummy_true_labels = torch.randint(0, 2, (BATCH_SIZE, SEQ_LENGTH)).float()
 
     # --- Forward Pass ---
-    pred_vectors, pred_probs, _ = model(dummy_points)
+    demo_pred_vectors, demo_pred_probs, _ = model(dummy_points)
 
     # --- Calculate Loss ---
-    loss = model.loss_function(pred_vectors, pred_probs, dummy_true_vectors, dummy_true_labels)
+    loss = model.loss_function(demo_pred_vectors, demo_pred_probs, dummy_true_vectors, dummy_true_labels)
 
     print("--- Model Architecture ---")
     print(model)
     print("\n--- Input and Output Shapes ---")
     print(f"Input points shape:      {dummy_points.shape}")
-    print(f"Predicted vectors shape:   {pred_vectors.shape}")
-    print(f"Predicted probabilities shape: {pred_probs.shape}")
+    print(f"Predicted vectors shape:   {demo_pred_vectors.shape}")
+    print(f"Predicted probabilities shape: {demo_pred_probs.shape}")
     print(f"Calculated loss:         {loss.item():.4f}")
 
     # --- Check a single prediction ---
     print("\n--- Example Prediction ---")
-    print(f"Example predicted vector for first point: {pred_vectors[0, 0].detach().numpy()}")
-    print(f"Example predicted probability for first point: {pred_probs[0, 0].item():.4f}")
+    print(f"Example predicted vector for first point: {demo_pred_vectors[0, 0].detach().numpy()}")
+    print(f"Example predicted probability for first point: {demo_pred_probs[0, 0].item():.4f}")

@@ -1,7 +1,14 @@
 import numpy as np
 import matplotlib.pyplot as plt
 
-def generate_circle_data(num_points, img_size=(-1, 1)):
+def generate_circle_data(
+    num_points,
+    img_size=(-1, 1),
+    add_noise=False,
+    noise_std=0.05,
+    add_clutter=False,
+    clutter_fraction=0.1,
+):
     """
     Generates synthetic data of points and a single circle on a 2D plane.
 
@@ -10,12 +17,17 @@ def generate_circle_data(num_points, img_size=(-1, 1)):
     Args:
         num_points (int): The number of random points to generate.
         img_size (tuple): A tuple (min, max) defining the boundaries of the square plane.
+        add_noise (bool): If True, add Gaussian noise to grayscale values.
+        noise_std (float): Standard deviation of Gaussian noise on grayscale values.
+        add_clutter (bool): If True, perturb a random subset of point grayscale values.
+        clutter_fraction (float): Fraction of points affected by clutter.
 
     Returns:
         tuple: A tuple containing:
-            - points (np.ndarray): An array of shape (num_points, 2) with the [x, y] coordinates of the points.
+                        - points (np.ndarray): An array of shape (num_points, 3) with [x, y, c],
+                            where c is the grayscale value at the point.
             - vectors (np.ndarray): An array of shape (num_points, 2) with the ground truth vectors from each point to the circle's center.
-            - labels (np.ndarray): An array of shape (num_points, 1) with the ground truth label (1 for inside the circle, 0 for outside).
+                        - labels (np.ndarray): An array of shape (num_points,) with the ground truth label (1 for inside the circle, 0 for outside).
     """
     min_coord, max_coord = img_size
 
@@ -35,17 +47,43 @@ def generate_circle_data(num_points, img_size=(-1, 1)):
     center = np.array([center_x, center_y])
 
     # 2. Generate random points
-    points = np.random.uniform(min_coord, max_coord, size=(num_points, 2))
+    xy_points = np.random.uniform(min_coord, max_coord, size=(num_points, 2))
 
     # 3. Calculate ground truth for each point
     # Vector from point to center
-    vectors = center - points
+    vectors = center - xy_points
 
     # Distance from point to center
     distances = np.linalg.norm(vectors, axis=1)
 
     # Label (is_inside_circle)
-    labels = (distances <= radius).astype(int)
+    labels = (distances <= radius).astype(np.float32)
+
+    # 4. Generate grayscale value c for each point from synthetic patch statistics
+    background_intensity = np.random.uniform(0.15, 0.45)
+    contrast = np.random.uniform(0.35, 0.7)
+    inside_brighter = np.random.rand() < 0.5
+
+    if inside_brighter:
+        circle_intensity = np.clip(background_intensity + contrast, 0.0, 1.0)
+    else:
+        circle_intensity = np.clip(background_intensity - contrast, 0.0, 1.0)
+
+    grayscale = np.where(labels == 1, circle_intensity, background_intensity).astype(np.float32)
+
+    if add_noise:
+        grayscale = grayscale + np.random.normal(0.0, noise_std, size=num_points).astype(np.float32)
+
+    if add_clutter:
+        num_clutter = max(1, int(clutter_fraction * num_points))
+        clutter_indices = np.random.choice(num_points, size=num_clutter, replace=False)
+        grayscale[clutter_indices] = np.random.uniform(0.0, 1.0, size=num_clutter).astype(np.float32)
+
+    grayscale = np.clip(grayscale, 0.0, 1.0)
+
+    # point feature vector z_s = (x_s, y_s, c_s)
+    points = np.concatenate([xy_points, grayscale[:, np.newaxis]], axis=1).astype(np.float32)
+    vectors = vectors.astype(np.float32)
 
     return points, vectors, labels, (center, radius)
 
@@ -54,10 +92,11 @@ def visualize_data(points, labels, circle_params):
     Visualizes the generated points and the ground truth circle.
     """
     center, radius = circle_params
-    inside_points = points[labels == 1]
-    outside_points = points[labels == 0]
+    xy_points = points[:, :2]
+    inside_points = xy_points[labels == 1]
+    outside_points = xy_points[labels == 0]
 
-    fig, ax = plt.subplots(figsize=(8, 8))
+    _, ax = plt.subplots(figsize=(8, 8))
 
     # Plot points
     ax.scatter(inside_points[:, 0], inside_points[:, 1], color='blue', label='Inside Circle')
@@ -95,9 +134,10 @@ if __name__ == '__main__':
     print("Example data for the first 5 points:")
     for i in range(5):
         point_str = f"Point: [{generated_points[i][0]:.4f}, {generated_points[i][1]:.4f}]"
+        gray_str = f"Gray: {generated_points[i][2]:.3f}"
         vector_str = f"Vector to center: [{generated_vectors[i][0]:.4f}, {generated_vectors[i][1]:.4f}]"
         label_str = f"Is inside: {'Yes' if generated_labels[i] == 1 else 'No'}"
-        print(f"{i+1}. {point_str} | {vector_str} | {label_str}")
+        print(f"{i+1}. {point_str} | {gray_str} | {vector_str} | {label_str}")
 
     # --- Visualize the generated data ---
     visualize_data(generated_points, generated_labels, circle_info)
