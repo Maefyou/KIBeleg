@@ -1,18 +1,23 @@
 import torch
 import numpy as np
 import argparse
+import json
 import matplotlib.pyplot as plt
 from data_generator import generate_circle_data
-from model import AttentionCircleDetector
+from pathlib import Path
+
+from run_config import RunConfig, build_model, config_path_for_run, load_config, model_path_for_run
 
 def evaluate_model(
-    model_path,
-    num_points=500,
+    model_path=None,
+    num_points=None,
     visualize=False,
     add_noise=False,
     noise_std=0.05,
     add_clutter=False,
     clutter_fraction=0.1,
+    config_path=None,
+    run_dir=None,
 ):
     """
     Loads a trained model and evaluates its performance on a fixed test set.
@@ -34,17 +39,38 @@ def evaluate_model(
     np.random.seed(42)
     torch.manual_seed(42)
 
+    config = None
+    if config_path is not None or run_dir is not None:
+        resolved_config_path = Path(config_path) if config_path is not None else config_path_for_run(run_dir)
+        config = load_config(resolved_config_path)
+        if run_dir is None:
+            run_dir = resolved_config_path.parent
+        if model_path is None:
+            model_path = model_path_for_run(run_dir)
+        if num_points is None:
+            num_points = config.num_points
+
+    if config is None:
+        if num_points is None:
+            num_points = 500
+        config = RunConfig(num_points=num_points, max_seq_len=num_points * 2)
+
+    if model_path is None:
+        model_path = "attention_circle_detector.pth"
+
+    if num_points > config.max_seq_len:
+        raise ValueError(
+            f"num_points ({num_points}) exceeds the trained model capacity ({config.max_seq_len})."
+        )
+
     # --- Load Model ---
     # Instantiate the model architecture
-    # The parameters (d_model, nhead, etc.) must match the saved model
-    model = AttentionCircleDetector(input_dim=3, max_seq_len=num_points * 2).to(device)
+    model = build_model(config).to(device)
     
     # Load the trained weights
     try:
         checkpoint = torch.load(model_path, map_location=device)
-        if 'pos_encoder.pe' in checkpoint:
-            checkpoint.pop('pos_encoder.pe')
-        model.load_state_dict(checkpoint, strict=False)
+        model.load_state_dict(checkpoint, strict=True)
     except FileNotFoundError:
         print(f"Error: Model file not found at '{model_path}'")
         print("Please run train.py first to generate the model file.")
@@ -81,6 +107,19 @@ def evaluate_model(
     print("-" * 30)
     print(f"Final Loss on Test Set: {loss.item():.6f}")
     print("-" * 30)
+
+    if run_dir is not None:
+        metrics_path = Path(run_dir) / "evaluation_metrics.json"
+        evaluation_metrics = {
+            "test_loss": loss.item(),
+            "num_points": num_points,
+            "noise": add_noise,
+            "noise_std": noise_std,
+            "clutter": add_clutter,
+            "clutter_fraction": clutter_fraction,
+        }
+        metrics_path.write_text(json.dumps(evaluation_metrics, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+        print(f"Saved evaluation metrics to {metrics_path}")
 
     # --- Optional Visualization ---
     if visualize:
@@ -133,9 +172,13 @@ def visualize_predictions(points, labels, true_circle_params, estimated_center):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description="Evaluate the Attention Circle Detector model.")
-    parser.add_argument('--model-path', type=str, default='attention_circle_detector.pth',
+    parser.add_argument('--model-path', type=str, default=None,
                         help='Path to the saved model file.')
-    parser.add_argument('--num-points', type=int, default=500,
+    parser.add_argument('--config-path', type=str, default=None,
+                        help='Path to a saved run config file.')
+    parser.add_argument('--run-dir', type=str, default=None,
+                        help='Path to a run directory created by train.py.')
+    parser.add_argument('--num-points', type=int, default=None,
                         help='Number of points for the test set.')
     parser.add_argument('--visualize', action='store_true',
                         help='Include this flag to visualize the model prediction on the test set.')
@@ -158,4 +201,6 @@ if __name__ == '__main__':
         noise_std=args.noise_std,
         add_clutter=args.clutter,
         clutter_fraction=args.clutter_fraction,
+        config_path=args.config_path,
+        run_dir=args.run_dir,
     )

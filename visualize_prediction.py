@@ -3,16 +3,20 @@ import numpy as np
 import argparse
 import matplotlib.pyplot as plt
 from data_generator import generate_circle_data
-from model import AttentionCircleDetector
+from pathlib import Path
+
+from run_config import RunConfig, build_model, config_path_for_run, load_config, model_path_for_run, visualizations_dir_for_run
 
 
 def visualize_model_predictions(
-    model_path,
-    num_points=200,
+    model_path=None,
+    num_points=None,
     num_examples=1,
     add_noise=False,
     add_clutter=False,
     save_prefix="prediction_viz",
+    config_path=None,
+    run_dir=None,
 ):
     """
     Generates synthetic circle data, runs model inference, and visualizes predictions.
@@ -28,13 +32,40 @@ def visualize_model_predictions(
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print(f"Using device: {device}")
 
+    config = None
+    if config_path is not None or run_dir is not None:
+        resolved_config_path = Path(config_path) if config_path is not None else config_path_for_run(run_dir)
+        config = load_config(resolved_config_path)
+        if run_dir is None:
+            run_dir = resolved_config_path.parent
+        if model_path is None:
+            model_path = model_path_for_run(run_dir)
+        if num_points is None:
+            num_points = config.num_points
+
+    if config is None:
+        if num_points is None:
+            num_points = 200
+        config = RunConfig(num_points=num_points, max_seq_len=num_points * 2)
+
+    if num_points > config.max_seq_len:
+        raise ValueError(
+            f"num_points ({num_points}) exceeds the trained model capacity ({config.max_seq_len})."
+        )
+
+    if model_path is None:
+        model_path = "attention_circle_detector.pth"
+
+    if run_dir is not None and save_prefix == "prediction_viz":
+        save_prefix = str(visualizations_dir_for_run(run_dir) / save_prefix)
+
+    Path(save_prefix).parent.mkdir(parents=True, exist_ok=True)
+
     # Load model
-    model = AttentionCircleDetector(input_dim=3, max_seq_len=num_points * 2).to(device)
+    model = build_model(config).to(device)
     try:
         checkpoint = torch.load(model_path, map_location=device)
-        if 'pos_encoder.pe' in checkpoint:
-            checkpoint.pop('pos_encoder.pe')
-        model.load_state_dict(checkpoint, strict=False)
+        model.load_state_dict(checkpoint, strict=True)
     except FileNotFoundError:
         print(f"Error: Model file not found at '{model_path}'")
         return
@@ -170,6 +201,7 @@ def visualize_model_predictions(
         print(f"Saved visualization to {save_path}")
 
         plt.show()
+        plt.close(fig)
 
 
 if __name__ == '__main__':
@@ -177,11 +209,19 @@ if __name__ == '__main__':
         description="Visualize model predictions on circle detection task."
     )
     parser.add_argument(
-        '--model-path', type=str, default='attention_circle_detector.pth',
+        '--model-path', type=str, default=None,
         help='Path to the saved model.'
     )
     parser.add_argument(
-        '--num-points', type=int, default=200,
+        '--config-path', type=str, default=None,
+        help='Path to a saved run config file.'
+    )
+    parser.add_argument(
+        '--run-dir', type=str, default=None,
+        help='Path to a run directory created by train.py.'
+    )
+    parser.add_argument(
+        '--num-points', type=int, default=None,
         help='Number of sample points per example.'
     )
     parser.add_argument(
@@ -210,4 +250,6 @@ if __name__ == '__main__':
         add_noise=args.noise,
         add_clutter=args.clutter,
         save_prefix=args.save_prefix,
+        config_path=args.config_path,
+        run_dir=args.run_dir,
     )

@@ -1,13 +1,25 @@
+from dataclasses import asdict
 import torch
 import torch.optim as optim
 from data_generator import generate_circle_data
-from model import AttentionCircleDetector
 import argparse
 import matplotlib.pyplot as plt
-from datetime import datetime
-import os
+from pathlib import Path
+import json
 import time
 from collections import deque
+
+from run_config import (
+    RunConfig,
+    build_model,
+    config_path_for_run,
+    architecture_path_for_run,
+    metrics_path_for_run,
+    model_path_for_run,
+    run_dir,
+    save_config,
+    visualizations_dir_for_run,
+)
 
 
 def format_eta(seconds):
@@ -20,7 +32,14 @@ def format_eta(seconds):
     return f"{minutes:d}:{secs:02d}"
 
 
-def generate_visualizations(model, num_visualizations=10, num_points=200, add_noise=False, add_clutter=False):
+def generate_visualizations(
+    model,
+    num_visualizations=10,
+    num_points=200,
+    add_noise=False,
+    add_clutter=False,
+    output_dir=None,
+):
     """
     Generate validation visualizations after training.
     
@@ -33,11 +52,9 @@ def generate_visualizations(model, num_visualizations=10, num_points=200, add_no
     """
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     model.eval()
-    
-    # Create output directory with timestamp
-    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    output_dir = f"validation_viz_{timestamp}"
-    os.makedirs(output_dir, exist_ok=True)
+
+    output_dir = Path(output_dir or "validation_viz")
+    output_dir.mkdir(parents=True, exist_ok=True)
     
     print(f"\n--- Generating {num_visualizations} validation visualizations ---")
     
@@ -153,10 +170,10 @@ def generate_visualizations(model, num_visualizations=10, num_points=200, add_no
             ax.grid(True, alpha=0.3)
             
             # Save figure
-            save_path = f"{output_dir}/validation_viz_{viz_idx + 1:02d}.png"
+            save_path = output_dir / f"validation_viz_{viz_idx + 1:02d}.png"
             plt.savefig(save_path, dpi=100, bbox_inches='tight')
             plt.close(fig)
-    
+
     print(f"Saved {num_visualizations} visualization images to {output_dir}/")
 
 
@@ -171,6 +188,14 @@ def main():
                         help='Batch size for training.')
     parser.add_argument('--lr', type=float, default=0.00001,
                         help='Learning rate for the optimizer.')
+    parser.add_argument('--d-model', type=int, default=120,
+                        help='Transformer model dimension.')
+    parser.add_argument('--nhead', type=int, default=8,
+                        help='Number of attention heads.')
+    parser.add_argument('--num-encoder-layers', type=int, default=6,
+                        help='Number of transformer encoder layers.')
+    parser.add_argument('--run-root', type=str, default='runs',
+                        help='Directory where run subdirectories are stored.')
     parser.add_argument('--noise', action='store_true',
                         help='Enable Gaussian noise in grayscale input values.')
     parser.add_argument('--noise-std', type=float, default=0.05,
@@ -187,12 +212,35 @@ def main():
     NUM_POINTS_PER_SAMPLE = args.num_points
     LEARNING_RATE = args.lr
 
+    config = RunConfig(
+        input_dim=3,
+        d_model=args.d_model,
+        nhead=args.nhead,
+        num_encoder_layers=args.num_encoder_layers,
+        dim_feedforward=512,
+        dropout=0.1,
+        max_seq_len=NUM_POINTS_PER_SAMPLE * 2,
+        num_points=NUM_POINTS_PER_SAMPLE,
+        epochs=NUM_EPOCHS,
+        batch_size=BATCH_SIZE,
+        lr=LEARNING_RATE,
+        noise=args.noise,
+        noise_std=args.noise_std,
+        clutter=args.clutter,
+        clutter_fraction=args.clutter_fraction,
+    )
+
+    run_directory = run_dir(args.run_root, config)
+    run_directory.mkdir(parents=True, exist_ok=True)
+    save_config(config, config_path_for_run(run_directory))
+
     # --- Setup ---
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print(f"Using device: {device}")
 
     # Instantiate the model
-    model = AttentionCircleDetector(input_dim=3, max_seq_len=NUM_POINTS_PER_SAMPLE * 2).to(device) # Ensure max_len is sufficient
+    model = build_model(config).to(device)
+    architecture_path_for_run(run_directory).write_text(f"{model}\n", encoding="utf-8")
     
     # Setup optimizer
     optimizer = optim.Adam(model.parameters(), lr=LEARNING_RATE)
@@ -204,6 +252,7 @@ def main():
     # --- Training Loop ---
     recent_losses = deque(maxlen=100)
     training_start = time.perf_counter()
+    training_summaries = []
 
     for epoch in range(NUM_EPOCHS):
         epoch_start = time.perf_counter()
@@ -251,6 +300,16 @@ def main():
             eta_seconds = avg_epoch_time * remaining_epochs
             window_start = epoch + 2 - window_size
             window_end = epoch + 1
+            training_summaries.append(
+                {
+                    "window_start_epoch": window_start,
+                    "window_end_epoch": window_end,
+                    "loss_avg": avg_loss,
+                    "last_epoch_loss": epoch_loss,
+                    "epoch_time_seconds": epoch_duration,
+                    "eta_seconds": eta_seconds,
+                }
+            )
             print(
                 f"Epochs {window_start}-{window_end}/{NUM_EPOCHS} | "
                 f"Loss avg: {avg_loss:.6f} | "
@@ -261,18 +320,35 @@ def main():
     print("--- Training Finished ---")
 
     # --- Save the trained model ---
-    model_save_path = "attention_circle_detector.pth"
+    model_save_path = model_path_for_run(run_directory)
     torch.save(model.state_dict(), model_save_path)
     print(f"Model saved to {model_save_path}")
+
+    metrics = {
+        "config": asdict(config),
+        "training_duration_seconds": time.perf_counter() - training_start,
+        "final_epoch_loss": epoch_loss,
+        "training_summaries": training_summaries,
+    }
+    with metrics_path_for_run(run_directory).open("w", encoding="utf-8") as handle:
+        json.dump(metrics, handle, indent=2, sort_keys=True)
+        handle.write("\n")
+
+    print(f"Saved metrics to {metrics_path_for_run(run_directory)}")
+    print(f"Saved config to {config_path_for_run(run_directory)}")
+    print(f"Saved architecture to {architecture_path_for_run(run_directory)}")
 
     # --- Generate validation visualizations ---
     generate_visualizations(
         model,
         num_visualizations=10,
-        num_points=200,
+        num_points=NUM_POINTS_PER_SAMPLE,
         add_noise=args.noise,
         add_clutter=args.clutter,
+        output_dir=visualizations_dir_for_run(run_directory),
     )
+
+    print(f"Run artifacts stored in {run_directory}")
 
 if __name__ == '__main__':
     main()

@@ -19,8 +19,16 @@ class PositionalEncoding(nn.Module):
         return x
 
 class AttentionCircleDetector(nn.Module):
-    def __init__(self, input_dim=3, d_model=128, nhead=8, num_encoder_layers=6, dim_feedforward=512, dropout=0.1, max_seq_len=5000):
+    def __init__(self, input_dim=3, d_model=120, nhead=8, num_encoder_layers=6, dim_feedforward=512, dropout=0.1, max_seq_len=5000):
         super(AttentionCircleDetector, self).__init__()
+        if d_model <= 0:
+            raise ValueError(f"d_model must be positive, got {d_model}")
+        if nhead <= 0:
+            raise ValueError(f"nhead must be positive, got {nhead}")
+        if d_model % 2 != 0:
+            raise ValueError(f"d_model must be even for positional encoding, got {d_model}")
+        if d_model % nhead != 0:
+            raise ValueError(f"d_model ({d_model}) must be divisible by nhead ({nhead})")
         self.d_model = d_model
         self.input_embedding = nn.Linear(input_dim, d_model)
         self.pos_encoder = PositionalEncoding(d_model, max_len=max_seq_len)
