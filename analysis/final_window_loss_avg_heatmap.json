@@ -1,0 +1,172 @@
+{
+  "heads": [
+    1,
+    2,
+    3,
+    4
+  ],
+  "layers": [
+    1,
+    2,
+    3,
+    4
+  ],
+  "matrix": [
+    [
+      0.4487056744098663,
+      0.3537097020447254,
+      0.3233802171424031,
+      0.2879361553490162
+    ],
+    [
+      0.17511785294860602,
+      0.1257306231930852,
+      0.14719116624444722,
+      0.1114521100744605
+    ],
+    [
+      0.13080698803067206,
+      0.10782638430595398,
+      0.09597095649689436,
+      0.09042771292850375
+    ],
+    [
+      0.13541771423071622,
+      0.09507360028102994,
+      0.10523862643167377,
+      0.0700152519904077
+    ]
+  ],
+  "metric": "last_window_loss_avg",
+  "runs": [
+    {
+      "d_model": 120,
+      "heads": 1,
+      "layers": 1,
+      "run_dir": "runs/layers_1_heads_1_dmodel_120",
+      "trained_epochs": 15000,
+      "value": 0.4487056744098663
+    },
+    {
+      "d_model": 120,
+      "heads": 2,
+      "layers": 1,
+      "run_dir": "runs/layers_1_heads_2_dmodel_120",
+      "trained_epochs": 15000,
+      "value": 0.3537097020447254
+    },
+    {
+      "d_model": 120,
+      "heads": 3,
+      "layers": 1,
+      "run_dir": "runs/layers_1_heads_3_dmodel_120",
+      "trained_epochs": 15000,
+      "value": 0.3233802171424031
+    },
+    {
+      "d_model": 120,
+      "heads": 4,
+      "layers": 1,
+      "run_dir": "runs/layers_1_heads_4_dmodel_120",
+      "trained_epochs": 15000,
+      "value": 0.2879361553490162
+    },
+    {
+      "d_model": 120,
+      "heads": 1,
+      "layers": 2,
+      "run_dir": "runs/layers_2_heads_1_dmodel_120",
+      "trained_epochs": 15000,
+      "value": 0.17511785294860602
+    },
+    {
+      "d_model": 120,
+      "heads": 2,
+      "layers": 2,
+      "run_dir": "runs/layers_2_heads_2_dmodel_120",
+      "trained_epochs": 15000,
+      "value": 0.1257306231930852
+    },
+    {
+      "d_model": 120,
+      "heads": 3,
+      "layers": 2,
+      "run_dir": "runs/layers_2_heads_3_dmodel_120",
+      "trained_epochs": 15000,
+      "value": 0.14719116624444722
+    },
+    {
+      "d_model": 120,
+      "heads": 4,
+      "layers": 2,
+      "run_dir": "runs/layers_2_heads_4_dmodel_120",
+      "trained_epochs": 15000,
+      "value": 0.1114521100744605
+    },
+    {
+      "d_model": 120,
+      "heads": 1,
+      "layers": 3,
+      "run_dir": "runs/layers_3_heads_1_dmodel_120",
+      "trained_epochs": 15000,
+      "value": 0.13080698803067206
+    },
+    {
+      "d_model": 120,
+      "heads": 2,
+      "layers": 3,
+      "run_dir": "runs/layers_3_heads_2_dmodel_120",
+      "trained_epochs": 15000,
+      "value": 0.10782638430595398
+    },
+    {
+      "d_model": 120,
+      "heads": 3,
+      "layers": 3,
+      "run_dir": "runs/layers_3_heads_3_dmodel_120",
+      "trained_epochs": 15000,
+      "value": 0.09597095649689436
+    },
+    {
+      "d_model": 120,
+      "heads": 4,
+      "layers": 3,
+      "run_dir": "runs/layers_3_heads_4_dmodel_120",
+      "trained_epochs": 15000,
+      "value": 0.09042771292850375
+    },
+    {
+      "d_model": 120,
+      "heads": 1,
+      "layers": 4,
+      "run_dir": "runs/layers_4_heads_1_dmodel_120",
+      "trained_epochs": 15000,
+      "value": 0.13541771423071622
+    },
+    {
+      "d_model": 120,
+      "heads": 2,
+      "layers": 4,
+      "run_dir": "runs/layers_4_heads_2_dmodel_120",
+      "trained_epochs": 15000,
+      "value": 0.09507360028102994
+    },
+    {
+      "d_model": 120,
+      "heads": 3,
+      "layers": 4,
+      "run_dir": "runs/layers_4_heads_3_dmodel_120",
+      "trained_epochs": 15000,
+      "value": 0.10523862643167377
+    },
+    {
+      "d_model": 120,
+      "heads": 4,
+      "layers": 4,
+      "run_dir": "runs/layers_4_heads_4_dmodel_120",
+      "trained_epochs": 15000,
+      "value": 0.0700152519904077
+    }
+  ],
+  "trained_epochs": 15000
+}
