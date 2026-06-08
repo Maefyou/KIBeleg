@@ -150,8 +150,8 @@ def generate_visualizations(
             )
             ax.add_artist(circle_est)
             
-            ax.set_xlim(-1.2, 1.2)
-            ax.set_ylim(-1.2, 1.2)
+            ax.set_xlim(-0.6, 0.6)
+            ax.set_ylim(-0.6, 0.6)
             ax.set_aspect('equal', adjustable='box')
             ax.set_xlabel('X-coordinate', fontsize=12)
             ax.set_ylabel('Y-coordinate', fontsize=12)
@@ -294,6 +294,7 @@ def main():
         if (epoch + 1) % 100 == 0 or epoch == NUM_EPOCHS - 1:
             window_size = len(recent_losses)
             avg_loss = sum(recent_losses) / window_size
+            min_loss = min(recent_losses)
             elapsed = time.perf_counter() - training_start
             avg_epoch_time = elapsed / (epoch + 1)
             remaining_epochs = NUM_EPOCHS - (epoch + 1)
@@ -305,6 +306,7 @@ def main():
                     "window_start_epoch": window_start,
                     "window_end_epoch": window_end,
                     "loss_avg": avg_loss,
+                    "loss_min": min_loss,
                     "last_epoch_loss": epoch_loss,
                     "epoch_time_seconds": epoch_duration,
                     "eta_seconds": eta_seconds,
@@ -312,7 +314,7 @@ def main():
             )
             print(
                 f"Epochs {window_start}-{window_end}/{NUM_EPOCHS} | "
-                f"Loss avg: {avg_loss:.6f} | "
+                f"Loss avg: {avg_loss:.6f} | Loss min: {min_loss:.6f} | "
                 f"Last epoch: {epoch_loss:.6f} | Epoch time: {epoch_duration:.2f}s | "
                 f"ETA: {format_eta(eta_seconds)}"
             )

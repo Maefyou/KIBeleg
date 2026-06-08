@@ -5,6 +5,21 @@ import sys
 from pathlib import Path
 
 
+def resolve_d_model(base_d_model: int, num_heads: int) -> int:
+    """Return a valid d_model for the given head count.
+
+    Multi-head attention splits d_model into num_heads equal slices, so d_model
+    must be divisible by num_heads; positional encoding additionally needs it to
+    be even. base_d_model (120) satisfies this for heads 5, 6, 8 but not 7, so for
+    heads=7 we bump up to the nearest even multiple (126 = 7 * 18). The adapted
+    value is reflected in the run name (..._dmodel_126) and logged by the caller.
+    """
+    d_model = base_d_model
+    while d_model % num_heads != 0 or d_model % 2 != 0:
+        d_model += 1
+    return d_model
+
+
 def run_sweep(args: argparse.Namespace) -> None:
     project_root = Path(__file__).resolve().parent
     run_root = Path(args.run_root)
@@ -23,12 +38,24 @@ def run_sweep(args: argparse.Namespace) -> None:
         f"Heads: {args.heads_min}-{args.heads_max}, d_model={args.d_model}"
     )
 
+    failures: list[str] = []
+
     for num_layers, num_heads in combinations:
-        run_name = f"layers_{num_layers}_heads_{num_heads}_dmodel_{args.d_model}"
+        model_d_model = resolve_d_model(args.d_model, num_heads)
+        run_name = f"layers_{num_layers}_heads_{num_heads}_dmodel_{model_d_model}"
         run_dir = run_root / run_name
 
-        if args.skip_existing and run_dir.exists():
-            print(f"[SKIP] {run_name} already exists")
+        if model_d_model != args.d_model:
+            print(
+                f"[ADAPT] heads={num_heads}: base d_model {args.d_model} not divisible "
+                f"by {num_heads}; using d_model={model_d_model} for this run"
+            )
+
+        # A run only counts as "done" once metrics.json was written at the end of
+        # training. The run directory itself is created at the start of train.py, so
+        # checking mere directory existence would wrongly skip an interrupted model.
+        if args.skip_existing and (run_dir / "metrics.json").exists():
+            print(f"[SKIP] {run_name} already completed")
             continue
 
         train_command = [
@@ -43,7 +70,7 @@ def run_sweep(args: argparse.Namespace) -> None:
             "--lr",
             str(args.lr),
             "--d-model",
-            str(args.d_model),
+            str(model_d_model),
             "--nhead",
             str(num_heads),
             "--num-encoder-layers",
@@ -63,9 +90,18 @@ def run_sweep(args: argparse.Namespace) -> None:
         print(f"\n[RUN] {run_name}")
         result = subprocess.run(train_command, cwd=project_root)
         if result.returncode != 0:
-            raise RuntimeError(
-                f"Training failed for layers={num_layers}, heads={num_heads} with exit code {result.returncode}"
+            # Don't abort the whole sweep on one bad model; record and keep going so
+            # the remaining configurations still get trained.
+            print(
+                f"[FAIL] {run_name} exited with code {result.returncode}; continuing with the rest"
             )
+            failures.append(run_name)
+
+    if failures:
+        print(f"\nSweep finished with {len(failures)} failed run(s):")
+        for name in failures:
+            print(f"  - {name}")
+        raise RuntimeError(f"{len(failures)} run(s) failed during the sweep")
 
     print("\nSweep completed.")
 

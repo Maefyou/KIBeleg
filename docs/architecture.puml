@@ -1,0 +1,214 @@
+@startuml architecture
+' Render with Graphviz (dot). Example:
+'   GRAPHVIZ_DOT=tools/gv/usr/bin/dot \
+'   LD_LIBRARY_PATH=tools/gv/usr/lib/x86_64-linux-gnu:tools/gv/usr/lib/x86_64-linux-gnu/graphviz \
+'   java -jar tools/plantuml.jar -tsvg docs/architecture.puml
+' (or simply `sudo apt install graphviz` then `java -jar plantuml.jar -tsvg docs/architecture.puml`)
+
+title Attention Circle Detector — Architecture & Functionality
+
+skinparam shadowing false
+skinparam dpi 150
+skinparam roundcorner 8
+skinparam packageStyle rectangle
+skinparam class {
+  BackgroundColor #F7FAFF
+  BorderColor #3B6EA5
+  ArrowColor #3B6EA5
+}
+skinparam note {
+  BackgroundColor #FFF7E0
+  BorderColor #C9A227
+}
+legend left
+  Task: given a set of 2D points (x, y, grayscale c), the model predicts —
+  for every point independently — a vector to the circle's centre and the
+  probability that the point lies inside the circle.
+endlegend
+
+' ===================== MODEL =====================
+package "model.py" {
+  class PositionalEncoding {
+    +pe : buffer [max_len, d_model]
+    +forward(x) : x + positional
+  }
+  class AttentionCircleDetector {
+    +d_model : int
+    +input_embedding : Linear(3 -> d_model)
+    +pos_encoder : PositionalEncoding
+    +transformer_encoder : TransformerEncoder
+    +vector_head : Linear(d_model -> 2)
+    +probability_head : Linear(d_model -> 1) + Sigmoid
+    --
+    +forward(src) : (vectors, probs, feats)
+    +loss_function(v', p', v, y) : total_loss
+  }
+  class "nn.Module" as NNModule <<torch>>
+}
+
+PositionalEncoding --|> NNModule
+AttentionCircleDetector --|> NNModule
+AttentionCircleDetector *-- PositionalEncoding : composes
+
+note right of AttentionCircleDetector
+  **Forward pass** (batch B, N points, 3 features)
+  (B,N,3)
+   -> Linear embed  x  sqrt(d_model)
+   -> + sinusoidal positional encoding
+   -> TransformerEncoder (nhead, num_layers)
+   -> per-point feature (B,N,d_model)
+   -> vector_head  -> (B,N,2)  vector point->centre
+   -> probability_head -> (B,N,1) P(inside)
+  Per-point heads => order-equivariant output;
+  attention lets points "vote" on the shared circle.
+end note
+
+note bottom of AttentionCircleDetector
+  **Loss function**  L = ||v' - v||^2  - y·log p' - (1-y)·log(1-p')
+  • term 1: squared error of the predicted centre vector (regression)
+  • term 2: binary cross-entropy of inside/outside (classification)
+  Implemented as: mean over points of (vector MSE) + (BCE), then summed.
+  eps=1e-9 guards log(0).
+end note
+
+' ===================== CONFIG =====================
+package "run_config.py" {
+  class RunConfig <<dataclass frozen>> {
+    +input_dim = 3
+    +d_model = 120
+    +nhead = 8
+    +num_encoder_layers = 6
+    +dim_feedforward = 512
+    +dropout = 0.1
+    +max_seq_len, num_points, epochs
+    +batch_size, lr
+    +noise, noise_std, clutter, clutter_fraction
+  }
+  class "run_config (helpers)" as RunCfgMod <<module>> {
+    +validate_run_config(cfg)
+    +build_model(cfg) : AttentionCircleDetector
+    +run_dir(root, cfg) / run_name(cfg)
+    +save_config / load_config
+    +model/metrics/config/architecture_path_for_run
+  }
+}
+
+RunCfgMod ..> RunConfig : reads/validates
+RunCfgMod ..> AttentionCircleDetector : build_model() constructs
+
+note right of RunConfig
+  **d_model divisibility rule**
+  d_model must be divisible by nhead (multi-head
+  attention splits d_model into nhead slices) and
+  even (positional encoding). 120 works for heads
+  1-6 & 8, but NOT 7 -> sweep bumps heads=7 to 126.
+  validate_run_config() enforces this.
+end note
+
+' ===================== DATA =====================
+package "data_generator.py" {
+  class "data_generator" as DataGen <<module>> {
+    +generate_circle_data(num_points, img_size=(-0.5,0.5), ...)
+    ..returns..
+    points[N,3], vectors[N,2], labels[N], (centre, r)
+    --
+    +visualize_data(points, labels, circle)
+  }
+}
+
+note bottom of DataGen
+  **Synthetic data spec**
+  • points x,y ~ U(-0.5, 0.5); plane = [-0.5,0.5]^2
+  • radius ~ U(0.1, 0.25): min fixed 0.1, max = 0.5·width/2,
+    centre constrained so the circle is fully inside
+  • feature c = grayscale (circle vs background intensity)
+  • optional Gaussian noise on c and random "clutter" points
+  • ground truth per point: vector to centre + inside/outside label
+  A FRESH random scene is drawn every batch (infinite stream,
+  no fixed dataset).
+end note
+
+' ===================== TRAIN =====================
+package "train.py" {
+  class "train" as TrainMod <<module>> {
+    +main() : training loop
+    +generate_visualizations(model, ...)
+    +format_eta(seconds)
+  }
+}
+
+TrainMod ..> RunCfgMod : build_model, save_config
+TrainMod ..> DataGen : generate_circle_data (per epoch)
+TrainMod ..> AttentionCircleDetector : forward + loss_function + Adam
+
+note right of TrainMod
+  **Training loop**
+  for each epoch: draw fresh batch -> forward -> loss
+  -> backward -> Adam.step(). Keeps a deque of the last
+  100 epoch losses; every 100 epochs records both
+  loss_avg and loss_min for that window.
+  **Outputs per run dir:** attention_circle_detector.pth,
+  config.json, metrics.json (incl. training_summaries),
+  architecture.txt, visualizations/*.png
+end note
+
+' ===================== SWEEP =====================
+package "sweep_models.py" {
+  class "sweep_models" as SweepMod <<module>> {
+    +run_sweep(args)
+    +resolve_d_model(base, nhead) : valid d_model
+  }
+}
+
+SweepMod ..> TrainMod : subprocess per (layers, heads)
+
+note right of SweepMod
+  **Grid sweep + resume**
+  Cartesian product of layers x heads. One `python train.py`
+  subprocess per cell. resolve_d_model() picks the nearest
+  even multiple of nhead >= base (heads=7 -> 126).
+  --skip-existing skips cells that already have metrics.json
+  (safe to re-run / resume); a failed cell is logged and the
+  sweep continues instead of aborting.
+end note
+
+' ===================== EVALUATE =====================
+package "evaluate.py" {
+  class "evaluate" as EvalMod <<module>> {
+    +evaluate_model(run_dir, visualize, num_examples, ...)
+    +save_prediction_visualizations(model, ...)
+    +_save_prediction_plot(...)
+  }
+}
+
+EvalMod ..> RunCfgMod : load_config, build_model
+EvalMod ..> DataGen : generate_circle_data
+EvalMod ..> AttentionCircleDetector : inference + loss
+
+note bottom of EvalMod
+  **Evaluation & visual check**
+  Loads a trained run, computes test loss on a fixed-seed set,
+  and (--visualize) saves N annotated plots with per-example
+  metrics: centre-localisation error, vector MSE, classification
+  accuracy. Estimated centre = mean(point + predicted vector).
+end note
+
+' ===================== ANALYSIS =====================
+package "analysis/generate_heatmap.py" {
+  class "generate_heatmap" as HeatMod <<module>> {
+    +collect_heatmap_data(run_root, metric)
+    +save_heatmap(...) / save_summary_json(...)
+    +RunRecord <<dataclass>>
+  }
+}
+
+HeatMod ..> TrainMod : reads metrics.json produced by runs
+
+note right of HeatMod
+  **Heatmaps (layers x heads)**
+  Metrics: final_epoch_loss, last_window_loss_min
+  (min of last 100 epochs), last_window_loss_avg.
+  Outputs <metric>_heatmap.png + .json summary.
+end note
+
+@enduml

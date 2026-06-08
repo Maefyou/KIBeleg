@@ -133,3 +133,9 @@ cython_debug/
 
 # Saved model files
 *.pth
+
+# Local rendering tools (PlantUML jar, extracted Graphviz) - large binaries
+tools/
+
+# Per-model sample visualizations (kept local; results captured by metrics + heatmaps)
+**/visualizations/

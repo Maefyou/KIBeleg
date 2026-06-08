@@ -37,6 +37,17 @@ def _load_metric(metrics_path: Path, metric_name: str) -> float:
             raise KeyError(f"Missing 'training_summaries' in {metrics_path}")
         return float(summaries[-1]["loss_avg"])
 
+    if metric_name == "last_window_loss_min":
+        summaries = metrics.get("training_summaries", [])
+        if not summaries:
+            raise KeyError(f"Missing 'training_summaries' in {metrics_path}")
+        if "loss_min" not in summaries[-1]:
+            raise KeyError(
+                f"Missing 'loss_min' in last training summary of {metrics_path}. "
+                "This run predates min-loss tracking; retrain to record it."
+            )
+        return float(summaries[-1]["loss_min"])
+
     if metric_name not in metrics:
         raise KeyError(f"Missing '{metric_name}' in {metrics_path}")
     return float(metrics[metric_name])
@@ -167,6 +178,8 @@ def _output_stem(metric_name: str) -> str:
         return "final_epoch_loss_heatmap"
     if metric_name == "last_window_loss_avg":
         return "final_window_loss_avg_heatmap"
+    if metric_name == "last_window_loss_min":
+        return "final_window_loss_min_heatmap"
     return f"{metric_name}_heatmap"
 
 
@@ -175,6 +188,8 @@ def _metric_title(metric_name: str) -> str:
         return "Final epoch loss"
     if metric_name == "last_window_loss_avg":
         return "Final average loss (last 100 epochs)"
+    if metric_name == "last_window_loss_min":
+        return "Final minimum loss (last 100 epochs)"
     return metric_name.replace("_", " ")
 
 
@@ -185,8 +200,8 @@ def main() -> None:
         "--metric",
         type=str,
         default="both",
-        choices=["both", "final_epoch_loss", "last_window_loss_avg"],
-        help="Which heatmap metric(s) to visualize.",
+        choices=["both", "final_epoch_loss", "last_window_loss_min", "last_window_loss_avg"],
+        help="Which heatmap metric(s) to visualize. 'both' = final epoch loss + min loss of last 100 epochs.",
     )
     parser.add_argument(
         "--output",
@@ -208,7 +223,7 @@ def main() -> None:
     output_dir.mkdir(parents=True, exist_ok=True)
     summary_dir.mkdir(parents=True, exist_ok=True)
 
-    metric_names = [args.metric] if args.metric != "both" else ["final_epoch_loss", "last_window_loss_avg"]
+    metric_names = [args.metric] if args.metric != "both" else ["final_epoch_loss", "last_window_loss_min"]
 
     for metric_name in metric_names:
         matrix, layers, heads, runs = collect_heatmap_data(run_root, metric_name)

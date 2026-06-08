@@ -1,0 +1,172 @@
+{
+  "heads": [
+    5,
+    6,
+    7,
+    8
+  ],
+  "layers": [
+    5,
+    6,
+    7,
+    8
+  ],
+  "matrix": [
+    [
+      0.01849389120005071,
+      0.022017668038606643,
+      0.015748592438176275,
+      0.016438551405444743
+    ],
+    [
+      0.0160649227630347,
+      0.014379610400646925,
+      0.015147285414859652,
+      0.015294275265187025
+    ],
+    [
+      0.014666006080806255,
+      0.014747907109558582,
+      0.015586225176230073,
+      0.03052892940118909
+    ],
+    [
+      0.016876348536461593,
+      0.014875852977856993,
+      0.01420791025273502,
+      0.013946098620072006
+    ]
+  ],
+  "metric": "last_window_loss_avg",
+  "runs": [
+    {
+      "d_model": 120,
+      "heads": 5,
+      "layers": 5,
+      "run_dir": "runs_5to8/layers_5_heads_5_dmodel_120",
+      "trained_epochs": 15000,
+      "value": 0.01849389120005071
+    },
+    {
+      "d_model": 120,
+      "heads": 6,
+      "layers": 5,
+      "run_dir": "runs_5to8/layers_5_heads_6_dmodel_120",
+      "trained_epochs": 15000,
+      "value": 0.022017668038606643
+    },
+    {
+      "d_model": 126,
+      "heads": 7,
+      "layers": 5,
+      "run_dir": "runs_5to8/layers_5_heads_7_dmodel_126",
+      "trained_epochs": 15000,
+      "value": 0.015748592438176275
+    },
+    {
+      "d_model": 120,
+      "heads": 8,
+      "layers": 5,
+      "run_dir": "runs_5to8/layers_5_heads_8_dmodel_120",
+      "trained_epochs": 15000,
+      "value": 0.016438551405444743
+    },
+    {
+      "d_model": 120,
+      "heads": 5,
+      "layers": 6,
+      "run_dir": "runs_5to8/layers_6_heads_5_dmodel_120",
+      "trained_epochs": 15000,
+      "value": 0.0160649227630347
+    },
+    {
+      "d_model": 120,
+      "heads": 6,
+      "layers": 6,
+      "run_dir": "runs_5to8/layers_6_heads_6_dmodel_120",
+      "trained_epochs": 15000,
+      "value": 0.014379610400646925
+    },
+    {
+      "d_model": 126,
+      "heads": 7,
+      "layers": 6,
+      "run_dir": "runs_5to8/layers_6_heads_7_dmodel_126",
+      "trained_epochs": 15000,
+      "value": 0.015147285414859652
+    },
+    {
+      "d_model": 120,
+      "heads": 8,
+      "layers": 6,
+      "run_dir": "runs_5to8/layers_6_heads_8_dmodel_120",
+      "trained_epochs": 15000,
+      "value": 0.015294275265187025
+    },
+    {
+      "d_model": 120,
+      "heads": 5,
+      "layers": 7,
+      "run_dir": "runs_5to8/layers_7_heads_5_dmodel_120",
+      "trained_epochs": 15000,
+      "value": 0.014666006080806255
+    },
+    {
+      "d_model": 120,
+      "heads": 6,
+      "layers": 7,
+      "run_dir": "runs_5to8/layers_7_heads_6_dmodel_120",
+      "trained_epochs": 15000,
+      "value": 0.014747907109558582
+    },
+    {
+      "d_model": 126,
+      "heads": 7,
+      "layers": 7,
+      "run_dir": "runs_5to8/layers_7_heads_7_dmodel_126",
+      "trained_epochs": 15000,
+      "value": 0.015586225176230073
+    },
+    {
+      "d_model": 120,
+      "heads": 8,
+      "layers": 7,
+      "run_dir": "runs_5to8/layers_7_heads_8_dmodel_120",
+      "trained_epochs": 15000,
+      "value": 0.03052892940118909
+    },
+    {
+      "d_model": 120,
+      "heads": 5,
+      "layers": 8,
+      "run_dir": "runs_5to8/layers_8_heads_5_dmodel_120",
+      "trained_epochs": 15000,
+      "value": 0.016876348536461593
+    },
+    {
+      "d_model": 120,
+      "heads": 6,
+      "layers": 8,
+      "run_dir": "runs_5to8/layers_8_heads_6_dmodel_120",
+      "trained_epochs": 15000,
+      "value": 0.014875852977856993
+    },
+    {
+      "d_model": 126,
+      "heads": 7,
+      "layers": 8,
+      "run_dir": "runs_5to8/layers_8_heads_7_dmodel_126",
+      "trained_epochs": 15000,
+      "value": 0.01420791025273502
+    },
+    {
+      "d_model": 120,
+      "heads": 8,
+      "layers": 8,
+      "run_dir": "runs_5to8/layers_8_heads_8_dmodel_120",
+      "trained_epochs": 15000,
+      "value": 0.013946098620072006
+    }
+  ],
+  "trained_epochs": 15000
+}

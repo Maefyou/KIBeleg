@@ -3,7 +3,7 @@ import matplotlib.pyplot as plt
 
 def generate_circle_data(
     num_points,
-    img_size=(-1, 1),
+    img_size=(-0.5, 0.5),
     add_noise=False,
     noise_std=0.05,
     add_clutter=False,
@@ -33,9 +33,11 @@ def generate_circle_data(
 
     # 1. Define a random circle
     # To ensure the circle is fully visible, we'll generate its center and radius carefully.
-    # Max radius can be half the plane width. Let's choose a radius between 10% and 50% of the plane size.
+    # The smallest circles keep the same absolute size as before (min radius 0.1), while the
+    # max radius is capped at half of the plane half-width so the circle still fits completely
+    # inside the (now smaller) [-0.5, 0.5] plane.
     plane_width = max_coord - min_coord
-    min_radius = 0.1 * plane_width / 2
+    min_radius = 0.1
     max_radius = 0.5 * plane_width / 2
     radius = np.random.uniform(min_radius, max_radius)
 
@@ -109,8 +111,8 @@ def visualize_data(points, labels, circle_params):
     # Plot center
     ax.plot(center[0], center[1], 'go', markersize=8, label='Circle Center')
 
-    ax.set_xlim(-1, 1)
-    ax.set_ylim(-1, 1)
+    ax.set_xlim(-0.5, 0.5)
+    ax.set_ylim(-0.5, 0.5)
     ax.set_aspect('equal', adjustable='box')
     ax.set_xlabel("X-coordinate")
     ax.set_ylabel("Y-coordinate")
