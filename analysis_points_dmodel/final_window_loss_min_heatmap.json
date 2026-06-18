@@ -1,0 +1,282 @@
+{
+  "d_model": [
+    60,
+    92,
+    120,
+    152,
+    180
+  ],
+  "matrix": [
+    [
+      0.01937120221555233,
+      0.017019012942910194,
+      0.01779557578265667,
+      0.01690826192498207,
+      0.014990892261266708
+    ],
+    [
+      0.016874756664037704,
+      0.014089979231357574,
+      0.013229547068476677,
+      0.01192854717373848,
+      0.011924984864890575
+    ],
+    [
+      0.01579216495156288,
+      0.013309484347701073,
+      0.01076196227222681,
+      0.01080293208360672,
+      0.010383174754679203
+    ],
+    [
+      0.011102401651442051,
+      0.009491555392742157,
+      0.010529388673603535,
+      0.008197241462767124,
+      0.008832721039652824
+    ],
+    [
+      0.010675446130335331,
+      0.011728411540389061,
+      0.011280886828899384,
+      0.008147906512022018,
+      0.008089525625109673
+    ]
+  ],
+  "metric": "last_window_loss_min",
+  "num_points": [
+    100,
+    150,
+    200,
+    250,
+    300
+  ],
+  "runs": [
+    {
+      "d_model": 120,
+      "heads": 4,
+      "layers": 4,
+      "num_points": 100,
+      "run_dir": "runs_points_dmodel/points_100_dmodel_120",
+      "trained_epochs": 15000,
+      "value": 0.01779557578265667
+    },
+    {
+      "d_model": 152,
+      "heads": 4,
+      "layers": 4,
+      "num_points": 100,
+      "run_dir": "runs_points_dmodel/points_100_dmodel_152",
+      "trained_epochs": 15000,
+      "value": 0.01690826192498207
+    },
+    {
+      "d_model": 180,
+      "heads": 4,
+      "layers": 4,
+      "num_points": 100,
+      "run_dir": "runs_points_dmodel/points_100_dmodel_180",
+      "trained_epochs": 15000,
+      "value": 0.014990892261266708
+    },
+    {
+      "d_model": 60,
+      "heads": 4,
+      "layers": 4,
+      "num_points": 100,
+      "run_dir": "runs_points_dmodel/points_100_dmodel_60",
+      "trained_epochs": 15000,
+      "value": 0.01937120221555233
+    },
+    {
+      "d_model": 92,
+      "heads": 4,
+      "layers": 4,
+      "num_points": 100,
+      "run_dir": "runs_points_dmodel/points_100_dmodel_92",
+      "trained_epochs": 15000,
+      "value": 0.017019012942910194
+    },
+    {
+      "d_model": 120,
+      "heads": 4,
+      "layers": 4,
+      "num_points": 150,
+      "run_dir": "runs_points_dmodel/points_150_dmodel_120",
+      "trained_epochs": 15000,
+      "value": 0.013229547068476677
+    },
+    {
+      "d_model": 152,
+      "heads": 4,
+      "layers": 4,
+      "num_points": 150,
+      "run_dir": "runs_points_dmodel/points_150_dmodel_152",
+      "trained_epochs": 15000,
+      "value": 0.01192854717373848
+    },
+    {
+      "d_model": 180,
+      "heads": 4,
+      "layers": 4,
+      "num_points": 150,
+      "run_dir": "runs_points_dmodel/points_150_dmodel_180",
+      "trained_epochs": 15000,
+      "value": 0.011924984864890575
+    },
+    {
+      "d_model": 60,
+      "heads": 4,
+      "layers": 4,
+      "num_points": 150,
+      "run_dir": "runs_points_dmodel/points_150_dmodel_60",
+      "trained_epochs": 15000,
+      "value": 0.016874756664037704
+    },
+    {
+      "d_model": 92,
+      "heads": 4,
+      "layers": 4,
+      "num_points": 150,
+      "run_dir": "runs_points_dmodel/points_150_dmodel_92",
+      "trained_epochs": 15000,
+      "value": 0.014089979231357574
+    },
+    {
+      "d_model": 120,
+      "heads": 4,
+      "layers": 4,
+      "num_points": 200,
+      "run_dir": "runs_points_dmodel/points_200_dmodel_120",
+      "trained_epochs": 15000,
+      "value": 0.01076196227222681
+    },
+    {
+      "d_model": 152,
+      "heads": 4,
+      "layers": 4,
+      "num_points": 200,
+      "run_dir": "runs_points_dmodel/points_200_dmodel_152",
+      "trained_epochs": 15000,
+      "value": 0.01080293208360672
+    },
+    {
+      "d_model": 180,
+      "heads": 4,
+      "layers": 4,
+      "num_points": 200,
+      "run_dir": "runs_points_dmodel/points_200_dmodel_180",
+      "trained_epochs": 15000,
+      "value": 0.010383174754679203
+    },
+    {
+      "d_model": 60,
+      "heads": 4,
+      "layers": 4,
+      "num_points": 200,
+      "run_dir": "runs_points_dmodel/points_200_dmodel_60",
+      "trained_epochs": 15000,
+      "value": 0.01579216495156288
+    },
+    {
+      "d_model": 92,
+      "heads": 4,
+      "layers": 4,
+      "num_points": 200,
+      "run_dir": "runs_points_dmodel/points_200_dmodel_92",
+      "trained_epochs": 15000,
+      "value": 0.013309484347701073
+    },
+    {
+      "d_model": 120,
+      "heads": 4,
+      "layers": 4,
+      "num_points": 250,
+      "run_dir": "runs_points_dmodel/points_250_dmodel_120",
+      "trained_epochs": 15000,
+      "value": 0.010529388673603535
+    },
+    {
+      "d_model": 152,
+      "heads": 4,
+      "layers": 4,
+      "num_points": 250,
+      "run_dir": "runs_points_dmodel/points_250_dmodel_152",
+      "trained_epochs": 15000,
+      "value": 0.008197241462767124
+    },
+    {
+      "d_model": 180,
+      "heads": 4,
+      "layers": 4,
+      "num_points": 250,
+      "run_dir": "runs_points_dmodel/points_250_dmodel_180",
+      "trained_epochs": 15000,
+      "value": 0.008832721039652824
+    },
+    {
+      "d_model": 60,
+      "heads": 4,
+      "layers": 4,
+      "num_points": 250,
+      "run_dir": "runs_points_dmodel/points_250_dmodel_60",
+      "trained_epochs": 15000,
+      "value": 0.011102401651442051
+    },
+    {
+      "d_model": 92,
+      "heads": 4,
+      "layers": 4,
+      "num_points": 250,
+      "run_dir": "runs_points_dmodel/points_250_dmodel_92",
+      "trained_epochs": 15000,
+      "value": 0.009491555392742157
+    },
+    {
+      "d_model": 120,
+      "heads": 4,
+      "layers": 4,
+      "num_points": 300,
+      "run_dir": "runs_points_dmodel/points_300_dmodel_120",
+      "trained_epochs": 15000,
+      "value": 0.011280886828899384
+    },
+    {
+      "d_model": 152,
+      "heads": 4,
+      "layers": 4,
+      "num_points": 300,
+      "run_dir": "runs_points_dmodel/points_300_dmodel_152",
+      "trained_epochs": 15000,
+      "value": 0.008147906512022018
+    },
+    {
+      "d_model": 180,
+      "heads": 4,
+      "layers": 4,
+      "num_points": 300,
+      "run_dir": "runs_points_dmodel/points_300_dmodel_180",
+      "trained_epochs": 15000,
+      "value": 0.008089525625109673
+    },
+    {
+      "d_model": 60,
+      "heads": 4,
+      "layers": 4,
+      "num_points": 300,
+      "run_dir": "runs_points_dmodel/points_300_dmodel_60",
+      "trained_epochs": 15000,
+      "value": 0.010675446130335331
+    },
+    {
+      "d_model": 92,
+      "heads": 4,
+      "layers": 4,
+      "num_points": 300,
+      "run_dir": "runs_points_dmodel/points_300_dmodel_92",
+      "trained_epochs": 15000,
+      "value": 0.011728411540389061
+    }
+  ],
+  "trained_epochs": 15000
+}

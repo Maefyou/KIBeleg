@@ -196,6 +196,10 @@ def main():
                         help='Number of transformer encoder layers.')
     parser.add_argument('--run-root', type=str, default='runs',
                         help='Directory where run subdirectories are stored.')
+    parser.add_argument('--run-name', type=str, default=None,
+                        help='Override the run subdirectory name (default is derived from '
+                             'layers/heads/d_model). Use this when sweeping a parameter not '
+                             'captured by the default name, e.g. num_points, to avoid collisions.')
     parser.add_argument('--noise', action='store_true',
                         help='Enable Gaussian noise in grayscale input values.')
     parser.add_argument('--noise-std', type=float, default=0.05,
@@ -230,7 +234,10 @@ def main():
         clutter_fraction=args.clutter_fraction,
     )
 
-    run_directory = run_dir(args.run_root, config)
+    if args.run_name:
+        run_directory = Path(args.run_root) / args.run_name
+    else:
+        run_directory = run_dir(args.run_root, config)
     run_directory.mkdir(parents=True, exist_ok=True)
     save_config(config, config_path_for_run(run_directory))
 

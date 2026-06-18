@@ -3,13 +3,26 @@ from __future__ import annotations
 import argparse
 from dataclasses import asdict, dataclass
 import json
-import re
 from pathlib import Path
 
 import matplotlib.pyplot as plt
 import numpy as np
 
-RUN_DIR_PATTERN = re.compile(r"layers_(\d+)_heads_(\d+)_dmodel_(\d+)$")
+# A grid is a pair of RunRecord attributes used as the heatmap rows (y) and columns (x).
+GRID_SPECS = {
+    "layers_heads": {
+        "row_attr": "layers",
+        "col_attr": "heads",
+        "ylabel": "Number of layers",
+        "xlabel": "Number of heads",
+    },
+    "points_dmodel": {
+        "row_attr": "num_points",
+        "col_attr": "d_model",
+        "ylabel": "Number of sample points",
+        "xlabel": "d_model (embedding dim)",
+    },
+}
 
 
 @dataclass(frozen=True)
@@ -17,6 +30,7 @@ class RunRecord:
     layers: int
     heads: int
     d_model: int
+    num_points: int
     trained_epochs: int
     value: float
     run_dir: str
@@ -53,73 +67,56 @@ def _load_metric(metrics_path: Path, metric_name: str) -> float:
     return float(metrics[metric_name])
 
 
-def _load_trained_epochs(metrics_path: Path) -> int:
-    with metrics_path.open("r", encoding="utf-8") as handle:
-        metrics = json.load(handle)
-
-    config = metrics.get("config", {})
-    if "epochs" not in config:
-        raise KeyError(f"Missing 'config.epochs' in {metrics_path}")
-    return int(config["epochs"])
-
-
-def collect_heatmap_data(run_root: Path, metric_name: str) -> tuple[np.ndarray, list[int], list[int], list[RunRecord]]:
+def collect_runs(run_root: Path, metric_name: str) -> list[RunRecord]:
+    """Find every run (by its metrics.json) under run_root and read its dims + metric."""
     runs: list[RunRecord] = []
-    layer_values: set[int] = set()
-    head_values: set[int] = set()
+    if not run_root.exists():
+        return runs
 
-    for run_dir in sorted(run_root.iterdir() if run_root.exists() else []):
-        if not run_dir.is_dir():
-            continue
+    for metrics_path in sorted(run_root.rglob("metrics.json")):
+        with metrics_path.open("r", encoding="utf-8") as handle:
+            metrics = json.load(handle)
+        config = metrics.get("config", {})
+        for key in ("num_encoder_layers", "nhead", "d_model", "num_points", "epochs"):
+            if key not in config:
+                raise KeyError(f"Missing 'config.{key}' in {metrics_path}")
 
-        match = RUN_DIR_PATTERN.match(run_dir.name)
-        if not match:
-            continue
-
-        layers = int(match.group(1))
-        heads = int(match.group(2))
-        d_model = int(match.group(3))
-        metrics_path = run_dir / "metrics.json"
-        if not metrics_path.exists():
-            continue
-
-        metric_value = _load_metric(metrics_path, metric_name)
-        trained_epochs = _load_trained_epochs(metrics_path)
         runs.append(
             RunRecord(
-                layers=layers,
-                heads=heads,
-                d_model=d_model,
-                trained_epochs=trained_epochs,
-                value=metric_value,
-                run_dir=str(run_dir),
+                layers=int(config["num_encoder_layers"]),
+                heads=int(config["nhead"]),
+                d_model=int(config["d_model"]),
+                num_points=int(config["num_points"]),
+                trained_epochs=int(config["epochs"]),
+                value=_load_metric(metrics_path, metric_name),
+                run_dir=str(metrics_path.parent),
             )
         )
-        layer_values.add(layers)
-        head_values.add(heads)
+    return runs
 
-    layers_sorted = sorted(layer_values)
-    heads_sorted = sorted(head_values)
-    matrix = np.full((len(layers_sorted), len(heads_sorted)), np.nan, dtype=float)
 
-    layer_index = {value: idx for idx, value in enumerate(layers_sorted)}
-    head_index = {value: idx for idx, value in enumerate(heads_sorted)}
+def build_matrix(runs: list[RunRecord], row_attr: str, col_attr: str) -> tuple[np.ndarray, list[int], list[int]]:
+    rows_sorted = sorted({getattr(r, row_attr) for r in runs})
+    cols_sorted = sorted({getattr(r, col_attr) for r in runs})
+    matrix = np.full((len(rows_sorted), len(cols_sorted)), np.nan, dtype=float)
 
+    row_index = {value: idx for idx, value in enumerate(rows_sorted)}
+    col_index = {value: idx for idx, value in enumerate(cols_sorted)}
     for item in runs:
-        row = layer_index[item.layers]
-        col = head_index[item.heads]
-        matrix[row, col] = item.value
+        matrix[row_index[getattr(item, row_attr)], col_index[getattr(item, col_attr)]] = item.value
 
-    return matrix, layers_sorted, heads_sorted, runs
+    return matrix, rows_sorted, cols_sorted
 
 
 def save_heatmap(
     matrix: np.ndarray,
-    layers: list[int],
-    heads: list[int],
+    rows: list[int],
+    cols: list[int],
     output_path: Path,
     metric_name: str,
     trained_epochs: int | None,
+    xlabel: str,
+    ylabel: str,
 ) -> None:
     output_path.parent.mkdir(parents=True, exist_ok=True)
 
@@ -128,20 +125,20 @@ def save_heatmap(
     masked = np.ma.masked_invalid(matrix)
     image = ax.imshow(masked, cmap=cmap, origin="lower")
 
-    ax.set_xticks(np.arange(len(heads)))
-    ax.set_yticks(np.arange(len(layers)))
-    ax.set_xticklabels([str(head) for head in heads])
-    ax.set_yticklabels([str(layer) for layer in layers])
-    ax.set_xlabel("Number of heads")
-    ax.set_ylabel("Number of layers")
+    ax.set_xticks(np.arange(len(cols)))
+    ax.set_yticks(np.arange(len(rows)))
+    ax.set_xticklabels([str(col) for col in cols])
+    ax.set_yticklabels([str(row) for row in rows])
+    ax.set_xlabel(xlabel)
+    ax.set_ylabel(ylabel)
     if trained_epochs is None:
         title = f"Model performance heatmap ({metric_name})"
     else:
         title = f"Model performance heatmap ({metric_name}, trained epochs: {trained_epochs})"
     ax.set_title(title)
 
-    for row_idx in range(len(layers)):
-        for col_idx in range(len(heads)):
+    for row_idx in range(len(rows)):
+        for col_idx in range(len(cols)):
             value = matrix[row_idx, col_idx]
             if np.isnan(value):
                 label = "missing"
@@ -159,13 +156,22 @@ def save_heatmap(
     plt.close(fig)
 
 
-def save_summary_json(summary_path: Path, matrix: np.ndarray, layers: list[int], heads: list[int], runs: list[RunRecord], metric_name: str) -> None:
+def save_summary_json(
+    summary_path: Path,
+    matrix: np.ndarray,
+    rows: list[int],
+    cols: list[int],
+    runs: list[RunRecord],
+    metric_name: str,
+    row_name: str,
+    col_name: str,
+) -> None:
     summary_path.parent.mkdir(parents=True, exist_ok=True)
     epochs = sorted({run.trained_epochs for run in runs})
     payload = {
         "metric": metric_name,
-        "layers": layers,
-        "heads": heads,
+        row_name: rows,
+        col_name: cols,
         "trained_epochs": epochs[0] if len(epochs) == 1 else epochs,
         "matrix": matrix.tolist(),
         "runs": [asdict(run) for run in runs],
@@ -194,8 +200,15 @@ def _metric_title(metric_name: str) -> str:
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Generate a layers/heads heatmap from run metrics.")
+    parser = argparse.ArgumentParser(description="Generate a model-sweep heatmap from run metrics.")
     parser.add_argument("--run-root", type=str, default="runs", help="Root directory containing run subdirectories.")
+    parser.add_argument(
+        "--grid",
+        type=str,
+        default="layers_heads",
+        choices=sorted(GRID_SPECS.keys()),
+        help="Which two parameters form the heatmap axes.",
+    )
     parser.add_argument(
         "--metric",
         type=str,
@@ -217,6 +230,7 @@ def main() -> None:
     )
     args = parser.parse_args()
 
+    spec = GRID_SPECS[args.grid]
     run_root = Path(args.run_root)
     output_dir = Path(args.output)
     summary_dir = Path(args.summary)
@@ -226,9 +240,10 @@ def main() -> None:
     metric_names = [args.metric] if args.metric != "both" else ["final_epoch_loss", "last_window_loss_min"]
 
     for metric_name in metric_names:
-        matrix, layers, heads, runs = collect_heatmap_data(run_root, metric_name)
-        if not layers or not heads:
+        runs = collect_runs(run_root, metric_name)
+        if not runs:
             raise RuntimeError(f"No run directories with metrics found in {run_root}")
+        matrix, rows, cols = build_matrix(runs, spec["row_attr"], spec["col_attr"])
 
         epochs = sorted({run.trained_epochs for run in runs})
         trained_epochs = epochs[0] if len(epochs) == 1 else None
@@ -236,8 +251,10 @@ def main() -> None:
         output_path = output_dir / f"{_output_stem(metric_name)}.png"
         summary_path = summary_dir / f"{_output_stem(metric_name)}.json"
 
-        save_heatmap(matrix, layers, heads, output_path, _metric_title(metric_name), trained_epochs)
-        save_summary_json(summary_path, matrix, layers, heads, runs, metric_name)
+        save_heatmap(matrix, rows, cols, output_path, _metric_title(metric_name), trained_epochs,
+                     xlabel=spec["xlabel"], ylabel=spec["ylabel"])
+        save_summary_json(summary_path, matrix, rows, cols, runs, metric_name,
+                          row_name=spec["row_attr"], col_name=spec["col_attr"])
 
         print(f"Saved heatmap to {output_path}")
         print(f"Saved summary to {summary_path}")
