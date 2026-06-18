@@ -136,3 +136,16 @@ cython_debug/
 
 # Local rendering tools (PlantUML jar, extracted Graphviz) - large binaries
 tools/
+
+# Experiment runs and model checkpoints - large generated files
+runs/
+runs_5to8/
+runs_1to4_new/
+runs_points_dmodel/
+
+# Visualization outputs
+*.png
+*.pdf
+*.jpg
+*.jpeg
+*.svg
