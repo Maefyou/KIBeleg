@@ -8,6 +8,7 @@ def generate_circle_data(
     noise_std=0.05,
     add_clutter=False,
     clutter_fraction=0.1,
+    rng=None,
 ):
     """
     Generates synthetic data of points and a single circle on a 2D plane.
@@ -21,6 +22,11 @@ def generate_circle_data(
         noise_std (float): Standard deviation of Gaussian noise on grayscale values.
         add_clutter (bool): If True, perturb a random subset of point grayscale values.
         clutter_fraction (float): Fraction of points affected by clutter.
+        rng: Source of randomness. None (default) uses the global ``np.random`` state
+            (the legacy MT19937 generator), preserving previous behaviour. Pass a
+            ``np.random.Generator`` (e.g. ``np.random.default_rng()`` / PCG64, Philox)
+            to draw from a different RNG. Only methods shared by both APIs are used
+            (uniform, random, normal, choice).
 
     Returns:
         tuple: A tuple containing:
@@ -31,6 +37,10 @@ def generate_circle_data(
     """
     min_coord, max_coord = img_size
 
+    # Default to the legacy global numpy RNG so existing callers are unaffected.
+    if rng is None:
+        rng = np.random
+
     # 1. Define a random circle
     # To ensure the circle is fully visible, we'll generate its center and radius carefully.
     # The smallest circles keep the same absolute size as before (min radius 0.1), while the
@@ -39,17 +49,17 @@ def generate_circle_data(
     plane_width = max_coord - min_coord
     min_radius = 0.1
     max_radius = 0.5 * plane_width / 2
-    radius = np.random.uniform(min_radius, max_radius)
+    radius = rng.uniform(min_radius, max_radius)
 
     # The center must be far enough from the edges for the circle not to be clipped.
     center_min = min_coord + radius
     center_max = max_coord - radius
-    center_x = np.random.uniform(center_min, center_max)
-    center_y = np.random.uniform(center_min, center_max)
+    center_x = rng.uniform(center_min, center_max)
+    center_y = rng.uniform(center_min, center_max)
     center = np.array([center_x, center_y])
 
     # 2. Generate random points
-    xy_points = np.random.uniform(min_coord, max_coord, size=(num_points, 2))
+    xy_points = rng.uniform(min_coord, max_coord, size=(num_points, 2))
 
     # 3. Calculate ground truth for each point
     # Vector from point to center
@@ -62,9 +72,9 @@ def generate_circle_data(
     labels = (distances <= radius).astype(np.float32)
 
     # 4. Generate grayscale value c for each point from synthetic patch statistics
-    background_intensity = np.random.uniform(0.15, 0.45)
-    contrast = np.random.uniform(0.35, 0.7)
-    inside_brighter = np.random.rand() < 0.5
+    background_intensity = rng.uniform(0.15, 0.45)
+    contrast = rng.uniform(0.35, 0.7)
+    inside_brighter = rng.random() < 0.5
 
     if inside_brighter:
         circle_intensity = np.clip(background_intensity + contrast, 0.0, 1.0)
@@ -74,12 +84,12 @@ def generate_circle_data(
     grayscale = np.where(labels == 1, circle_intensity, background_intensity).astype(np.float32)
 
     if add_noise:
-        grayscale = grayscale + np.random.normal(0.0, noise_std, size=num_points).astype(np.float32)
+        grayscale = grayscale + rng.normal(0.0, noise_std, size=num_points).astype(np.float32)
 
     if add_clutter:
         num_clutter = max(1, int(clutter_fraction * num_points))
-        clutter_indices = np.random.choice(num_points, size=num_clutter, replace=False)
-        grayscale[clutter_indices] = np.random.uniform(0.0, 1.0, size=num_clutter).astype(np.float32)
+        clutter_indices = rng.choice(num_points, size=num_clutter, replace=False)
+        grayscale[clutter_indices] = rng.uniform(0.0, 1.0, size=num_clutter).astype(np.float32)
 
     grayscale = np.clip(grayscale, 0.0, 1.0)
 
